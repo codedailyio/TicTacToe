@@ -1,19 +1,152 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { Component } from "react";
+import {
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View,
+  Dimensions,
+  TouchableOpacity,
+  AsyncStorage
+} from "react-native";
+import WinOverlay from "./win_overlay";
+import { getGameStatus } from "./game";
+import ScaleIn from "./scalein";
 
-export default function App() {
-  return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-    </View>
-  );
+const squares = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+
+export default class App extends Component {
+  state = {
+    user: "X",
+    moves: {}
+  };
+  async componentDidMount() {
+    const values = await AsyncStorage.multiGet(["XWins", "OWins"]);
+    this.setState({
+      [values[0][0]]: parseInt(values[0][1], 10) || 0,
+      [values[1][0]]: parseInt(values[1][1], 10) || 0
+    });
+  }
+
+  handlePlaceMove = index => {
+    this.setState(
+      state => {
+        const moves = { ...state.moves, [index]: state.user };
+        const gameStatus = getGameStatus(moves);
+
+        return {
+          moves,
+          user: state.user === "X" ? "O" : "X",
+          gameStatus,
+          XWins: gameStatus === "X_WIN" ? (state.XWins += 1) : state.XWins,
+          OWins: gameStatus == "O_WIN" ? (state.OWins += 1) : state.OWins
+        };
+      },
+      () => {
+        if (this.state.gameStatus) {
+          AsyncStorage.multiSet([
+            ["XWins", `${this.state.XWins}`],
+            ["OWins", `${this.state.OWins}`]
+          ]);
+        }
+      }
+    );
+  };
+  render() {
+    const { moves, user, gameStatus } = this.state;
+    const { width } = Dimensions.get("window");
+
+    const squareSize = width / 3 - 4;
+
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.turn}>{user} Turn</Text>
+        </View>
+        <View style={styles.content}>
+          <View style={styles.board}>
+            {squares.map(i => {
+              return (
+                <View key={i} style={[styles.square, { width: squareSize, height: squareSize }]}>
+                  <TouchableOpacity
+                    style={{
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: "100%",
+                      height: "100%"
+                    }}
+                    onPress={!moves[i] ? () => this.handlePlaceMove(i) : undefined}
+                  >
+                    {!!moves[i] && (
+                      <ScaleIn>
+                        <Text style={styles.value}>{moves[i]}</Text>
+                      </ScaleIn>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+        <View style={styles.footer}>
+          <Text style={styles.winValue}>{this.state.XWins} X Wins</Text>
+          <Text style={styles.winValue}>{this.state.OWins} O Wins</Text>
+        </View>
+        {!!gameStatus && (
+          <WinOverlay
+            value={gameStatus}
+            onRestart={() => {
+              // Async save wins
+              this.setState({
+                moves: {},
+                user: "X",
+                gameStatus: undefined
+              });
+            }}
+          />
+        )}
+      </SafeAreaView>
+    );
+  }
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flex: 1
   },
+  header: {
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  content: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  footer: {
+    paddingHorizontal: 20,
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between"
+  },
+  turn: {
+    fontSize: 24
+  },
+  board: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  square: {
+    borderWidth: 1,
+    borderColor: "#000",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  value: {
+    fontSize: 100
+  },
+  winValue: {
+    fontSize: 18
+  }
 });
