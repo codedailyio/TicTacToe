@@ -1,4 +1,4 @@
-import React, { Component } from "react";
+import React, { Component, useEffect, useState } from "react";
 import {
   SafeAreaView,
   StyleSheet,
@@ -14,103 +14,107 @@ import ScaleIn from "./scalein";
 
 const squares = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
-export default class App extends Component {
-  state = {
+const updateStorage = (XWins, OWins) => {
+  AsyncStorage.multiSet([["XWins", `${XWins}`], ["OWins", `${OWins}`]]);
+};
+
+const App = () => {
+  const [state, setState] = useState({
     user: "X",
     moves: {}
-  };
-  async componentDidMount() {
+  });
+
+  const { moves, user, gameStatus } = state;
+  const { width } = Dimensions.get("window");
+  const squareSize = width / 3 - 4;
+
+  // Load async storage items only on load
+  useEffect(async () => {
+    
     const values = await AsyncStorage.multiGet(["XWins", "OWins"]);
-    this.setState({
+    setState({
+      ...state,
       [values[0][0]]: parseInt(values[0][1], 10) || 0,
       [values[1][0]]: parseInt(values[1][1], 10) || 0
     });
-  }
 
-  updateStorage = (XWins, OWins) => {
-    AsyncStorage.multiSet([["XWins", `${XWins}`], ["OWins", `${OWins}`]]);
-  };
+  }, []);
 
-  handleRestart = () => {
-    this.setState({
+  const handleRestart = () => {
+    setState({
+      ...state,
       moves: {},
       user: "X",
       gameStatus: undefined
     });
   };
 
-  handleReset = () => {
-    this.updateStorage(0, 0);
-    this.setState({
+  const handleReset = () => {
+    updateStorage(0, 0);
+    setState({
+      ...state,
       XWins: 0,
       OWins: 0
     });
   };
 
   handlePlaceMove = index => {
-    this.setState(
-      state => {
-        const moves = { ...state.moves, [index]: state.user };
-        const gameStatus = getGameStatus(moves);
+    const moves = { ...state.moves, [index]: state.user };
+    const gameStatus = getGameStatus(moves);
 
-        return {
-          moves,
-          user: state.user === "X" ? "O" : "X",
-          gameStatus,
-          XWins: gameStatus === "X_WIN" ? (state.XWins += 1) : state.XWins,
-          OWins: gameStatus == "O_WIN" ? (state.OWins += 1) : state.OWins
-        };
-      },
-      () => {
-        if (this.state.gameStatus) {
-          this.updateStorage(this.state.XWins, this.state.OWins);
-        }
-      }
-    );
+    const XWins = gameStatus === "X_WIN" ? (state.XWins += 1) : state.XWins;
+    const OWins = gameStatus == "O_WIN" ? (state.OWins += 1) : state.OWins;
+
+    setState({
+      ...state,
+      moves,
+      user: state.user === "X" ? "O" : "X",
+      gameStatus,
+      XWins,
+      OWins
+    });
+
+    if (gameStatus) {
+      updateStorage(XWins, OWins);
+    }
   };
-  render() {
-    const { moves, user, gameStatus } = this.state;
-    const { width } = Dimensions.get("window");
 
-    const squareSize = width / 3 - 4;
-
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.turn}>{user} Turn</Text>
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.turn}>{user} Turn</Text>
+      </View>
+      <View style={styles.content}>
+        <View style={styles.board}>
+          {squares.map(i => {
+            return (
+              <View key={i} style={[styles.square, { width: squareSize, height: squareSize }]}>
+                <TouchableOpacity
+                  style={styles.touchSquare}
+                  onPress={!moves[i] ? () => handlePlaceMove(i) : undefined}
+                >
+                  {!!moves[i] && (
+                    <ScaleIn>
+                      <Text style={styles.value}>{moves[i]}</Text>
+                    </ScaleIn>
+                  )}
+                </TouchableOpacity>
+              </View>
+            );
+          })}
         </View>
-        <View style={styles.content}>
-          <View style={styles.board}>
-            {squares.map(i => {
-              return (
-                <View key={i} style={[styles.square, { width: squareSize, height: squareSize }]}>
-                  <TouchableOpacity
-                    style={styles.touchSquare}
-                    onPress={!moves[i] ? () => this.handlePlaceMove(i) : undefined}
-                  >
-                    {!!moves[i] && (
-                      <ScaleIn>
-                        <Text style={styles.value}>{moves[i]}</Text>
-                      </ScaleIn>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              );
-            })}
-          </View>
-        </View>
-        <View style={styles.footer}>
-          <Text style={styles.winValue}>{this.state.XWins} X Wins</Text>
-          <TouchableOpacity style={styles.resetButton} onPress={this.handleReset}>
-            <Text style={styles.resetButtonText}>Reset</Text>
-          </TouchableOpacity>
-          <Text style={styles.winValue}>{this.state.OWins} O Wins</Text>
-        </View>
-        {!!gameStatus && <WinOverlay value={gameStatus} onRestart={this.handleRestart} />}
-      </SafeAreaView>
-    );
-  }
-}
+      </View>
+      <View style={styles.footer}>
+        <Text style={styles.winValue}>{state.XWins} X Wins</Text>
+        <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
+          <Text style={styles.resetButtonText}>Reset</Text>
+        </TouchableOpacity>
+        <Text style={styles.winValue}>{state.OWins} O Wins</Text>
+      </View>
+      {!!gameStatus && <WinOverlay value={gameStatus} onRestart={handleRestart} />}
+    </SafeAreaView>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -171,3 +175,5 @@ const styles = StyleSheet.create({
     fontSize: 20
   }
 });
+
+export default App;
