@@ -68,12 +68,7 @@ export default class App extends Component {
               return (
                 <View key={i} style={[styles.square, { width: squareSize, height: squareSize }]}>
                   <TouchableOpacity
-                    style={{
-                      alignItems: "center",
-                      justifyContent: "center",
-                      width: "100%",
-                      height: "100%"
-                    }}
+                    style={styles.touchSquare}
                     onPress={!moves[i] ? () => this.handlePlaceMove(i) : undefined}
                   >
                     {!!moves[i] && (
@@ -89,13 +84,24 @@ export default class App extends Component {
         </View>
         <View style={styles.footer}>
           <Text style={styles.winValue}>{this.state.XWins} X Wins</Text>
+          <TouchableOpacity
+            style={styles.resetButton}
+            onPress={() => {
+              AsyncStorage.multiSet([["XWins", "0"], ["OWins", "0"]]);
+              this.setState({
+                XWins: 0,
+                OWins: 0
+              });
+            }}
+          >
+            <Text style={styles.resetButtonText}>Reset</Text>
+          </TouchableOpacity>
           <Text style={styles.winValue}>{this.state.OWins} O Wins</Text>
         </View>
         {!!gameStatus && (
           <WinOverlay
             value={gameStatus}
             onRestart={() => {
-              // Async save wins
               this.setState({
                 moves: {},
                 user: "X",
@@ -143,10 +149,28 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center"
   },
+  touchSquare: {
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+    height: "100%"
+  },
   value: {
     fontSize: 100
   },
   winValue: {
     fontSize: 18
+  },
+  resetButton: {
+    borderRadius: 8,
+    backgroundColor: "tomato",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  resetButtonText: {
+    color: "#FFF",
+    fontSize: 20
   }
 });
