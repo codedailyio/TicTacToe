@@ -27,6 +27,26 @@ export default class App extends Component {
     });
   }
 
+  updateStorage = (XWins, OWins) => {
+    AsyncStorage.multiSet([["XWins", `${XWins}`], ["OWins", `${OWins}`]]);
+  };
+
+  handleRestart = () => {
+    this.setState({
+      moves: {},
+      user: "X",
+      gameStatus: undefined
+    });
+  };
+
+  handleReset = () => {
+    this.updateStorage(0, 0);
+    this.setState({
+      XWins: 0,
+      OWins: 0
+    });
+  };
+
   handlePlaceMove = index => {
     this.setState(
       state => {
@@ -43,10 +63,7 @@ export default class App extends Component {
       },
       () => {
         if (this.state.gameStatus) {
-          AsyncStorage.multiSet([
-            ["XWins", `${this.state.XWins}`],
-            ["OWins", `${this.state.OWins}`]
-          ]);
+          this.updateStorage(this.state.XWins, this.state.OWins);
         }
       }
     );
@@ -84,32 +101,12 @@ export default class App extends Component {
         </View>
         <View style={styles.footer}>
           <Text style={styles.winValue}>{this.state.XWins} X Wins</Text>
-          <TouchableOpacity
-            style={styles.resetButton}
-            onPress={() => {
-              AsyncStorage.multiSet([["XWins", "0"], ["OWins", "0"]]);
-              this.setState({
-                XWins: 0,
-                OWins: 0
-              });
-            }}
-          >
+          <TouchableOpacity style={styles.resetButton} onPress={this.handleReset}>
             <Text style={styles.resetButtonText}>Reset</Text>
           </TouchableOpacity>
           <Text style={styles.winValue}>{this.state.OWins} O Wins</Text>
         </View>
-        {!!gameStatus && (
-          <WinOverlay
-            value={gameStatus}
-            onRestart={() => {
-              this.setState({
-                moves: {},
-                user: "X",
-                gameStatus: undefined
-              });
-            }}
-          />
-        )}
+        {!!gameStatus && <WinOverlay value={gameStatus} onRestart={this.handleRestart} />}
       </SafeAreaView>
     );
   }
